@@ -9,83 +9,61 @@
   <style>
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #1e293b; /* slate-800 */
+      background-image: linear-gradient(rgba(30, 41, 59, 0.96), rgba(30, 41, 59, 0.96)), 
+                        url('https://placehold.co/1920x1080/000000/FFFFFF?text=Blurred+Hospital+Background');
+      background-size: cover;
+      background-position: center;
       color: #e2e8f0; /* slate-200 */
-      background-image: linear-gradient(rgba(30, 41, 59, 0.95), rgba(30, 41, 59, 0.95)), 
-                        radial-gradient(circle at 25% 25%, #334155 2%, transparent 100%),
-                        radial-gradient(circle at 75% 75%, #334155 2%, transparent 100%);
-      background-size: 100% 100%, 50px 50px, 50px 50px;
     }
     .map-room-rect {
-      fill: #334155;
-      stroke: #475569;
-      stroke-width: 2px;
+      fill: #334155; stroke: #475569; stroke-width: 2px;
       transition: all 0.2s ease-in-out;
     }
     .map-room-group:hover .map-room-rect { fill: #475569; }
-    .map-room-group.active .map-room-rect {
-      fill: #475569;
-      stroke: #0ea5e9;
-    }
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.8; }
-    }
-    @keyframes flash-glow {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
+    .map-room-group.active .map-room-rect { fill: #475569; stroke: #2dd4bf; }
+    @keyframes pulse-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+    @keyframes flash-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .pulse-glow { animation: pulse-glow 2.5s infinite ease-in-out; }
     .flash-glow { animation: flash-glow 1.2s infinite ease-in-out; }
-
-    .stat-card {
-        background: #334155;
+    .stat-card, .glass-panel, .modal-panel {
+        background: rgba(49, 65, 85, 0.7);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         border: 1px solid #475569;
     }
     .tooltip {
-        position: absolute;
-        display: none;
-        background-color: #0f172a;
-        color: #e2e8f0;
-        padding: 8px 12px;
-        border-radius: 6px;
-        border: 1px solid #475569;
-        font-size: 12px;
-        pointer-events: none;
-        z-index: 10;
-        white-space: nowrap;
+        position: absolute; display: none; background-color: #0f172a; color: #e2e8f0;
+        padding: 8px 12px; border-radius: 6px; border: 1px solid #475569;
+        font-size: 12px; pointer-events: none; z-index: 10; white-space: nowrap;
     }
-    /* Custom scrollbar for alert feed */
-    #alert-feed::-webkit-scrollbar {
-        width: 6px;
+    .modal-backdrop {
+        background-color: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(8px);
     }
-    #alert-feed::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    #alert-feed::-webkit-scrollbar-thumb {
-        background: #475569; /* slate-600 */
-        border-radius: 3px;
-    }
-    #alert-feed::-webkit-scrollbar-thumb:hover {
-        background: #64748b; /* slate-500 */
-    }
+    #alert-feed::-webkit-scrollbar, #modal-history-log::-webkit-scrollbar { width: 6px; }
+    #alert-feed::-webkit-scrollbar-track, #modal-history-log::-webkit-scrollbar-track { background: transparent; }
+    #alert-feed::-webkit-scrollbar-thumb, #modal-history-log::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    #alert-feed::-webkit-scrollbar-thumb:hover, #modal-history-log::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    .fade-out { animation: fadeOut 0.3s ease-in forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
   </style>
 </head>
 <body class="antialiased">
 
-<div class="w-full h-screen flex flex-col p-4 md:p-6">
-  <!-- Header with Global Stats -->
+<!-- Main Application -->
+<div id="app-container" class="w-full h-screen flex flex-col p-4 md:p-6">
+  <!-- Header -->
   <header class="w-full flex-none">
     <div class="flex justify-between items-center mb-4">
         <div>
             <h1 class="text-3xl font-bold text-slate-100 tracking-tight">Hospital Command Center</h1>
             <div class="flex items-center space-x-2">
-                <div id="system-status-light" class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-                <p id="system-status-text" class="text-slate-400 text-sm">All Systems Operational</p>
+                <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                <p class="text-slate-400 text-sm">All Systems Operational</p>
             </div>
         </div>
         <div class="flex items-center space-x-4">
-             <!-- UPDATED: Consistent rounded-xl, shadow-lg, and padding -->
              <div class="stat-card p-4 rounded-xl shadow-lg text-center w-48">
                 <p id="live-clock" class="text-2xl font-bold text-slate-100">00:00:00</p>
                 <p class="text-xs font-semibold text-slate-400">System Time</p>
@@ -98,15 +76,17 @@
                 <p class="text-sm font-semibold text-slate-400">Med-Risk Rooms</p>
                 <p id="medium-risk-rooms-count" class="text-2xl font-bold text-amber-500">0</p>
             </div>
+             <button id="logout-btn" class="bg-slate-700 hover:bg-rose-500 text-slate-200 hover:text-white font-bold py-2 px-3 rounded-full transition-colors" title="Logout">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" /></svg>
+             </button>
         </div>
     </div>
   </header>
 
-  <!-- Main Content Area -->
-  <!-- UPDATED: Increased gap from gap-6 to gap-8 -->
+  <!-- Main Content -->
   <main class="w-full flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
-    <!-- Map Section -->
-    <section class="lg:col-span-2 bg-[#0f172a]/70 backdrop-blur-sm p-4 rounded-xl shadow-lg flex items-center justify-center border border-slate-700 relative">
+    <!-- Map -->
+    <section class="lg:col-span-2 glass-panel p-4 rounded-xl shadow-lg flex items-center justify-center relative">
         <svg id="hospital-map" viewBox="0 0 800 600" class="w-full h-full">
             <defs>
                 <g id="icon-heart-rate"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l4.125-4.125m0 0L12 14.25l4.125-4.125M7.875 9.375l4.125 4.125M12 3v18" /></g>
@@ -126,8 +106,8 @@
         <div id="map-tooltip" class="tooltip"></div>
     </section>
 
-    <!-- Device Info Section -->
-    <aside class="lg:col-span-1 bg-[#0f172a]/70 backdrop-blur-sm p-4 rounded-xl shadow-lg flex flex-col border border-slate-700">
+    <!-- Sidebar -->
+    <aside class="lg:col-span-1 glass-panel p-4 rounded-xl shadow-lg flex flex-col">
       <h2 id="device-panel-title" class="text-xl font-bold mb-4 border-b border-slate-700 pb-3 text-slate-200 flex-none">Select a Room</h2>
       <div id="device-list" class="flex-grow overflow-y-auto space-y-3 pr-2 min-h-0">
         <p class="text-slate-400 text-center mt-10">Device information will appear here.</p>
@@ -142,11 +122,25 @@
   </main>
 </div>
 
+<!-- Device Details Modal -->
+<div id="device-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="modal-panel rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <header class="p-4 border-b border-slate-700 flex justify-between items-center">
+            <h3 id="modal-title" class="text-lg font-bold text-slate-200">Device Details</h3>
+            <button id="modal-close-btn" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+        </header>
+        <div id="modal-content" class="p-6 flex-grow overflow-y-auto">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+</div>
+
 <script>
-    if (localStorage.getItem('isLoggedIn') !== 'true') {
-    // If the note doesn't say "true", redirect back to the login page
-    window.location.href = 'login.html';
-}
+    // --- AUTH GUARD ---
+    if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+        window.location.href = 'login.html'; // Use relative path
+    }
+
     const API_BASE_URL = 'http://127.0.0.1:9000';
 
     const hospitalLayout = {
@@ -169,8 +163,10 @@
     let deviceHistory = {};
     let liveAlerts = [];
     let activeRoomId = null;
+    let appIntervals = [];
 
     const dom = {
+        logoutBtn: document.getElementById('logout-btn'),
         map: document.getElementById('hospital-map'),
         tooltip: document.getElementById('map-tooltip'),
         devicePanelTitle: document.getElementById('device-panel-title'),
@@ -178,18 +174,21 @@
         alertFeed: document.getElementById('alert-feed'),
         highRiskRoomsCount: document.getElementById('high-risk-rooms-count'),
         mediumRiskRoomsCount: document.getElementById('medium-risk-rooms-count'),
-        liveClock: document.getElementById('live-clock')
+        liveClock: document.getElementById('live-clock'),
+        modal: document.getElementById('device-modal'),
+        modalTitle: document.getElementById('modal-title'),
+        modalContent: document.getElementById('modal-content'),
+        modalCloseBtn: document.getElementById('modal-close-btn'),
     };
 
     function getRiskInfo(score) {
         if (score > 40) return { color: 'red', textClass: 'text-rose-400', borderClass: 'border-l-[6px] border-rose-500', animationClass: 'flash-glow', tag: 'High Risk' };
-        if (score > 20) return { color: 'yellow', textClass: 'text-amber-400', borderClass: 'border-l-[6px] border-amber-500', animationClass: 'pulse-glow', tag: 'Medium Risk' };
+        if (score > 20) return { color: 'yellow', textClass: 'text-amber-500', borderClass: 'border-l-[6px] border-amber-500', animationClass: 'pulse-glow', tag: 'Medium Risk' };
         return { color: 'green', textClass: 'text-emerald-400', borderClass: 'border-l-[6px] border-emerald-500', animationClass: 'pulse-glow', tag: 'Operational' };
     }
 
     function timeAgo(timestamp) {
-        const now = new Date();
-        const seconds = Math.floor((now - timestamp) / 1000);
+        const seconds = Math.floor((new Date() - timestamp) / 1000);
         if (seconds < 10) return "just now";
         if (seconds < 60) return `${seconds}s ago`;
         const minutes = Math.floor(seconds / 60);
@@ -198,14 +197,14 @@
         return `${hours}h ago`;
     }
 
-    function createSparkline(history, color) {
+    function createSparkline(history, color, width = 80, height = 20) {
         if (!history || history.length < 2) return '';
-        const w = 80, h = 20;
+        const w = width, h = height;
         const max = Math.max(...history), min = Math.min(...history);
         const range = max - min === 0 ? 1 : max - min;
         const points = history.map((d, i) => `${(i/(history.length-1))*w},${h-((d-min)/range)*h}`).join(' ');
-        const stroke = { red: '#f43f5e', yellow: '#f59e0b', green: '#22c55e' }[color];
-        return `<svg viewBox="0 0 ${w} ${h}" class="w-20 h-5"><polyline fill="none" stroke="${stroke}" stroke-width="2" points="${points}"/></svg>`;
+        const stroke = { red: '#f43f5e', yellow: '#d97706', green: '#22c55e' }[color];
+        return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-full"><polyline fill="none" stroke="${stroke}" stroke-width="2" points="${points}"/></svg>`;
     }
 
     function updateUI() {
@@ -221,7 +220,7 @@
             });
             const risk = getRiskInfo(highestRisk);
             
-            const fillColor = {red: '#f43f5e', yellow: '#f59e0b', green: '#166534'}[risk.color];
+            const fillColor = {red: '#f43f5e', yellow: '#d97706', green: '#166534'}[risk.color];
             roomRect.style.fill = fillColor;
 
             roomEl.classList.remove('pulse-glow', 'flash-glow');
@@ -250,8 +249,8 @@
             if (!data) return;
             const risk = getRiskInfo(data.risk_score);
             const card = document.createElement('div');
-            // UPDATED: Added shadow-md to device cards
-            card.className = `p-3 rounded-lg shadow-md ${risk.borderClass} bg-slate-800/50`;
+            card.className = `p-3 rounded-lg shadow-md ${risk.borderClass} bg-slate-800/50 cursor-pointer hover:bg-slate-700/50 transition-colors`;
+            card.dataset.deviceId = deviceId;
             card.innerHTML = `
                 <div class="flex justify-between items-start">
                     <div>
@@ -259,16 +258,58 @@
                         <p class="text-xs ${risk.textClass} font-semibold">${risk.tag}</p>
                     </div>
                     <div class="text-3xl font-extrabold text-slate-200">${data.risk_score}</div>
-                </div>
-                <div class="mt-2 flex justify-between items-end">
-                    <div class="text-xs text-slate-400 space-y-1">
-                        <p class="flex items-center"><svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><use href="#icon-shield"/></svg>Patch: <span class="${data.patch_status === 'unpatched' ? 'text-amber-400' : 'text-slate-300'} ml-1">${data.patch_status}</span></p>
-                        <p class="flex items-center"><svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><use href="#icon-wrench"/></svg>Maint: <span class="${data.maintenance_days > 180 ? 'text-amber-400' : 'text-slate-300'} ml-1">${data.maintenance_days} days</span></p>
-                    </div>
-                    ${createSparkline(deviceHistory[deviceId], risk.color)}
                 </div>`;
             dom.deviceList.appendChild(card);
         });
+    }
+
+    function openDeviceModal(deviceId) {
+        const data = deviceScores[deviceId];
+        if (!data) return;
+
+        const risk = getRiskInfo(data.risk_score);
+        dom.modalTitle.textContent = `Details for ${deviceId.replace(/_/g, ' ')}`;
+
+        let historyLogHtml = deviceHistory[deviceId].map(score => {
+            const itemRisk = getRiskInfo(score);
+            return `<li class="flex justify-between items-center text-sm"><span class="${itemRisk.textClass}">${itemRisk.tag}</span><span class="font-semibold">${score}</span></li>`
+        }).join('');
+
+        dom.modalContent.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-bold text-slate-300 mb-2">Current Status</h4>
+                    <div class="p-4 bg-slate-800/50 rounded-lg">
+                        <p class="text-5xl font-extrabold ${risk.textClass} text-center">${data.risk_score}</p>
+                        <p class="text-center font-semibold ${risk.textClass}">${risk.tag}</p>
+                    </div>
+                     <h4 class="font-bold text-slate-300 mt-4 mb-2">Alert Reasons</h4>
+                     <ul class="text-sm list-disc list-inside text-slate-400">
+                        ${data.reasons.length > 0 ? data.reasons.map(r => `<li>${r}</li>`).join('') : '<li>Normal operation</li>'}
+                     </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-300 mb-2">Risk Score History</h4>
+                    <div class="w-full h-24 p-2 bg-slate-800/50 rounded-lg">
+                         ${createSparkline(deviceHistory[deviceId], risk.color, 280, 80)}
+                    </div>
+                    <h4 class="font-bold text-slate-300 mt-4 mb-2">Recent Activity Log</h4>
+                    <ul id="modal-history-log" class="text-slate-400 bg-slate-800/50 rounded-lg p-2 h-24 overflow-y-auto">
+                        ${historyLogHtml}
+                    </ul>
+                </div>
+            </div>
+        `;
+        dom.modal.classList.remove('hidden');
+        dom.modal.classList.add('fade-in');
+    }
+
+    function closeModal() {
+        dom.modal.classList.add('fade-out');
+        setTimeout(() => {
+            dom.modal.classList.add('hidden');
+            dom.modal.classList.remove('fade-out');
+        }, 300);
     }
 
     function renderAlertFeed() {
@@ -283,7 +324,7 @@
     
     async function fetchAllDeviceScores() {
         const promises = Object.entries(allDeviceTypes).map(async ([deviceId, deviceType]) => {
-            const normalcyChance = 0.6;
+            const normalcyChance = 0.95;
             const isNormal = Math.random() < normalcyChance;
             let payload;
             if (isNormal) {
@@ -300,8 +341,8 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 
-                const oldScoreData = deviceScores[deviceId];
-                const newScore = data.risk_score;
+                const oldRisk = getRiskInfo(deviceScores[deviceId]?.risk_score || 0).color;
+                const newRisk = getRiskInfo(data.risk_score).color;
                 
                 deviceScores[deviceId] = { ...data, patch_status: payload.patch_status, maintenance_days: payload.maintenance_days };
                 
@@ -309,7 +350,7 @@
                 deviceHistory[deviceId].push(data.risk_score);
                 if (deviceHistory[deviceId].length > 15) deviceHistory[deviceId].shift();
 
-                if (getRiskInfo(newScore).color === 'red' && getRiskInfo(oldScoreData?.risk_score || 0).color !== 'red') {
+                if (newRisk === 'red' && oldRisk !== 'red') {
                     liveAlerts.unshift({ deviceId, time: new Date() });
                     if (liveAlerts.length > 10) liveAlerts.pop();
                 }
@@ -323,6 +364,32 @@
         dom.liveClock.textContent = new Date().toLocaleTimeString('en-US');
     }
 
+    function startApp() {
+        fetchAllDeviceScores();
+        appIntervals.push(setInterval(fetchAllDeviceScores, 2500));
+        updateClock();
+        appIntervals.push(setInterval(updateClock, 1000));
+        appIntervals.push(setInterval(renderAlertFeed, 5000)); 
+    }
+
+    // --- Event Listeners ---
+    dom.logoutBtn.addEventListener('click', () => {
+        sessionStorage.removeItem('isLoggedIn');
+        window.location.href = 'login.html'; // Use relative path
+    });
+
+    dom.deviceList.addEventListener('click', (e) => {
+        const card = e.target.closest('[data-device-id]');
+        if (card) {
+            openDeviceModal(card.dataset.deviceId);
+        }
+    });
+
+    dom.modalCloseBtn.addEventListener('click', closeModal);
+    dom.modal.addEventListener('click', (e) => {
+        if(e.target === dom.modal) closeModal();
+    });
+    
     dom.map.addEventListener('click', (e) => {
         const roomGroup = e.target.closest('.map-room-group');
         if (!roomGroup) return;
@@ -352,13 +419,8 @@
     });
 
     window.addEventListener('load', () => {
-        fetchAllDeviceScores();
-        setInterval(fetchAllDeviceScores, 2500);
-        updateClock();
-        setInterval(updateClock, 1000);
-        setInterval(renderAlertFeed, 5000); 
+        startApp();
     });
-   
 </script>
 </body>
 </html>
