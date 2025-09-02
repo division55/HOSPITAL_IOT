@@ -143,6 +143,10 @@
 </div>
 
 <script>
+    if (localStorage.getItem('isLoggedIn') !== 'true') {
+    // If the note doesn't say "true", redirect back to the login page
+    window.location.href = 'login.html';
+}
     const API_BASE_URL = 'http://127.0.0.1:9000';
 
     const hospitalLayout = {
@@ -354,6 +358,7 @@
         setInterval(updateClock, 1000);
         setInterval(renderAlertFeed, 5000); 
     });
+   
 </script>
 </body>
 </html>
