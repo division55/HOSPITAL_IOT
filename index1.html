@@ -24,7 +24,6 @@
     .map-room-group.active .map-room-rect { fill: #475569; stroke: #2dd4bf; }
     @keyframes pulse-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
     @keyframes flash-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    /* NEW: Animation for recently changed cards */
     @keyframes subtle-pulse-border {
         0%, 100% { box-shadow: 0 0 12px -2px var(--glow-color); }
         50% { box-shadow: 0 0 16px 2px var(--glow-color); }
@@ -55,7 +54,6 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
-    /* Glow classes for device cards */
     .glow-red { --glow-color: #f43f5e; box-shadow: 0 0 12px -2px var(--glow-color); }
     .glow-yellow { --glow-color: #d97706; box-shadow: 0 0 12px -2px var(--glow-color); }
     .glow-green { --glow-color: #22c55e; box-shadow: 0 0 12px -2px var(--glow-color); }
@@ -75,9 +73,9 @@
             </div>
         </div>
         <div class="flex items-center space-x-4">
-             <div class="stat-card p-4 rounded-xl shadow-lg text-center w-48">
-                <p id="live-clock" class="text-2xl font-bold text-slate-100">00:00:00</p>
-                <p class="text-xs font-semibold text-slate-400">System Time</p>
+             <div class="stat-card p-4 rounded-xl shadow-lg text-center w-36">
+                <p id="avg-risk-score" class="text-2xl font-bold text-slate-100">0</p>
+                <p class="text-xs font-semibold text-slate-400">Avg. Risk Score</p>
             </div>
             <div class="stat-card p-4 rounded-xl shadow-lg text-center w-36">
                 <p class="text-sm font-semibold text-slate-400">High-Risk Rooms</p>
@@ -87,6 +85,9 @@
                 <p class="text-sm font-semibold text-slate-400">Med-Risk Rooms</p>
                 <p id="medium-risk-rooms-count" class="text-2xl font-bold text-amber-500">0</p>
             </div>
+             <a href="analytics.html" id="analytics-btn" class="bg-slate-700 hover:bg-teal-500 text-slate-200 hover:text-white font-bold py-2 px-3 rounded-full transition-colors" title="Analytics">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+             </a>
              <button id="logout-btn" class="bg-slate-700 hover:bg-rose-500 text-slate-200 hover:text-white font-bold py-2 px-3 rounded-full transition-colors" title="Logout">
                 <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" /></svg>
              </button>
@@ -126,7 +127,6 @@
        <div class="flex-none mt-4 pt-4 border-t border-slate-700">
         <h3 class="text-lg font-bold text-slate-200 mb-2">Live Alert Feed</h3>
         <div id="alert-feed" class="text-xs space-y-2 h-24 overflow-y-auto pr-1">
-             <!-- UPDATED: Reassuring message with icon -->
             <div class="flex items-center text-slate-500 h-full justify-center">
                 <svg class="w-6 h-6 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span>All Clear</span>
@@ -187,6 +187,7 @@
         devicePanelTitle: document.getElementById('device-panel-title'),
         deviceList: document.getElementById('device-list'),
         alertFeed: document.getElementById('alert-feed'),
+        avgRiskScore: document.getElementById('avg-risk-score'),
         highRiskRoomsCount: document.getElementById('high-risk-rooms-count'),
         mediumRiskRoomsCount: document.getElementById('medium-risk-rooms-count'),
         liveClock: document.getElementById('live-clock'),
@@ -198,7 +199,7 @@
 
     function getRiskInfo(score) {
         if (score > 50) return { color: 'red', textClass: 'text-rose-400', glowClass: 'glow-red', animationClass: 'flash-glow', tag: 'High Risk' };
-        if (score > 36) return { color: 'yellow', textClass: 'text-amber-500', glowClass: 'glow-yellow', animationClass: 'pulse-glow', tag: 'Medium Risk' };
+        if (score > 35) return { color: 'yellow', textClass: 'text-amber-500', glowClass: 'glow-yellow', animationClass: 'pulse-glow', tag: 'Medium Risk' };
         return { color: 'green', textClass: 'text-emerald-400', glowClass: 'glow-green', animationClass: 'pulse-glow', tag: 'Operational' };
     }
 
@@ -224,16 +225,20 @@
 
     function updateUI() {
         let highRiskRooms = 0, mediumRiskRooms = 0;
+        let totalScore = 0, deviceCount = 0;
+
         for (const roomId in hospitalLayout) {
             const roomEl = document.getElementById(roomId);
             const roomRect = roomEl.querySelector('.map-room-rect');
             if (!roomEl) continue;
-            let highestRisk = 0;
+            let highestRiskInRoom = 0;
             hospitalLayout[roomId].devices.forEach(id => {
                 const score = deviceScores[id]?.risk_score || 0;
-                if (score > highestRisk) highestRisk = score;
+                if (score > highestRiskInRoom) highestRiskInRoom = score;
+                totalScore += score;
+                deviceCount++;
             });
-            const risk = getRiskInfo(highestRisk);
+            const risk = getRiskInfo(highestRiskInRoom);
             
             const fillColor = {red: '#f43f5e', yellow: '#d97706', green: '#166534'}[risk.color];
             roomRect.style.fill = fillColor;
@@ -246,6 +251,7 @@
         }
         dom.highRiskRoomsCount.textContent = highRiskRooms;
         dom.mediumRiskRoomsCount.textContent = mediumRiskRooms;
+        dom.avgRiskScore.textContent = deviceCount > 0 ? (totalScore / deviceCount).toFixed(0) : 0;
         renderDeviceListForActiveRoom();
         renderAlertFeed();
     }
@@ -265,8 +271,7 @@
             const risk = getRiskInfo(data.risk_score);
             const card = document.createElement('div');
             
-            // Check for recent status change
-            const statusChangedRecently = data.lastStatusChange && (new Date() - data.lastStatusChange) < 30000; // 30 seconds
+            const statusChangedRecently = data.lastStatusChange && (new Date() - data.lastStatusChange) < 30000;
             const pulseClass = statusChangedRecently ? 'status-changed-pulse' : '';
 
             card.className = `p-3 rounded-lg ${risk.glowClass} ${pulseClass} bg-slate-800/50 cursor-pointer hover:bg-slate-700/50 transition-all duration-300`;
@@ -451,4 +456,6 @@
 </script>
 </body>
 </html>
+
+
 
