@@ -9,11 +9,12 @@
   <style>
     body {
       font-family: 'Inter', sans-serif;
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
       background-image: linear-gradient(rgba(30, 41, 59, 0.96), rgba(30, 41, 59, 0.96)), 
                         url('https://placehold.co/1920x1080/000000/FFFFFF?text=Blurred+Hospital+Background');
       background-size: cover;
       background-position: center;
-      color: #e2e8f0; /* slate-200 */
     }
     .map-room-rect {
       fill: #334155; stroke: #475569; stroke-width: 2px;
@@ -23,8 +24,15 @@
     .map-room-group.active .map-room-rect { fill: #475569; stroke: #2dd4bf; }
     @keyframes pulse-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
     @keyframes flash-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    /* NEW: Animation for recently changed cards */
+    @keyframes subtle-pulse-border {
+        0%, 100% { box-shadow: 0 0 12px -2px var(--glow-color); }
+        50% { box-shadow: 0 0 16px 2px var(--glow-color); }
+    }
     .pulse-glow { animation: pulse-glow 2.5s infinite ease-in-out; }
     .flash-glow { animation: flash-glow 1.2s infinite ease-in-out; }
+    .status-changed-pulse { animation: subtle-pulse-border 1.5s infinite; }
+
     .stat-card, .glass-panel, .modal-panel {
         background: rgba(49, 65, 85, 0.7);
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -36,8 +44,7 @@
         font-size: 12px; pointer-events: none; z-index: 10; white-space: nowrap;
     }
     .modal-backdrop {
-        background-color: rgba(15, 23, 42, 0.7);
-        backdrop-filter: blur(8px);
+        background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px);
     }
     #alert-feed::-webkit-scrollbar, #modal-history-log::-webkit-scrollbar { width: 6px; }
     #alert-feed::-webkit-scrollbar-track, #modal-history-log::-webkit-scrollbar-track { background: transparent; }
@@ -47,11 +54,15 @@
     .fade-out { animation: fadeOut 0.3s ease-in forwards; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+    /* Glow classes for device cards */
+    .glow-red { --glow-color: #f43f5e; box-shadow: 0 0 12px -2px var(--glow-color); }
+    .glow-yellow { --glow-color: #d97706; box-shadow: 0 0 12px -2px var(--glow-color); }
+    .glow-green { --glow-color: #22c55e; box-shadow: 0 0 12px -2px var(--glow-color); }
   </style>
 </head>
 <body class="antialiased">
 
-<!-- Main Application -->
 <div id="app-container" class="w-full h-screen flex flex-col p-4 md:p-6">
   <!-- Header -->
   <header class="w-full flex-none">
@@ -115,7 +126,11 @@
        <div class="flex-none mt-4 pt-4 border-t border-slate-700">
         <h3 class="text-lg font-bold text-slate-200 mb-2">Live Alert Feed</h3>
         <div id="alert-feed" class="text-xs space-y-2 h-24 overflow-y-auto pr-1">
-            <p class="text-slate-500">No critical alerts.</p>
+             <!-- UPDATED: Reassuring message with icon -->
+            <div class="flex items-center text-slate-500 h-full justify-center">
+                <svg class="w-6 h-6 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>All Clear</span>
+            </div>
         </div>
       </div>
     </aside>
@@ -138,7 +153,7 @@
 <script>
     // --- AUTH GUARD ---
     if (sessionStorage.getItem('isLoggedIn') !== 'true') {
-        window.location.href = 'login.html'; // Use relative path
+        window.location.href = 'login.html';
     }
 
     const API_BASE_URL = 'http://127.0.0.1:9000';
@@ -182,9 +197,9 @@
     };
 
     function getRiskInfo(score) {
-        if (score > 40) return { color: 'red', textClass: 'text-rose-400', borderClass: 'border-l-[6px] border-rose-500', animationClass: 'flash-glow', tag: 'High Risk' };
-        if (score > 20) return { color: 'yellow', textClass: 'text-amber-500', borderClass: 'border-l-[6px] border-amber-500', animationClass: 'pulse-glow', tag: 'Medium Risk' };
-        return { color: 'green', textClass: 'text-emerald-400', borderClass: 'border-l-[6px] border-emerald-500', animationClass: 'pulse-glow', tag: 'Operational' };
+        if (score > 50) return { color: 'red', textClass: 'text-rose-400', glowClass: 'glow-red', animationClass: 'flash-glow', tag: 'High Risk' };
+        if (score > 36) return { color: 'yellow', textClass: 'text-amber-500', glowClass: 'glow-yellow', animationClass: 'pulse-glow', tag: 'Medium Risk' };
+        return { color: 'green', textClass: 'text-emerald-400', glowClass: 'glow-green', animationClass: 'pulse-glow', tag: 'Operational' };
     }
 
     function timeAgo(timestamp) {
@@ -249,7 +264,12 @@
             if (!data) return;
             const risk = getRiskInfo(data.risk_score);
             const card = document.createElement('div');
-            card.className = `p-3 rounded-lg shadow-md ${risk.borderClass} bg-slate-800/50 cursor-pointer hover:bg-slate-700/50 transition-colors`;
+            
+            // Check for recent status change
+            const statusChangedRecently = data.lastStatusChange && (new Date() - data.lastStatusChange) < 30000; // 30 seconds
+            const pulseClass = statusChangedRecently ? 'status-changed-pulse' : '';
+
+            card.className = `p-3 rounded-lg ${risk.glowClass} ${pulseClass} bg-slate-800/50 cursor-pointer hover:bg-slate-700/50 transition-all duration-300`;
             card.dataset.deviceId = deviceId;
             card.innerHTML = `
                 <div class="flex justify-between items-start">
@@ -270,9 +290,9 @@
         const risk = getRiskInfo(data.risk_score);
         dom.modalTitle.textContent = `Details for ${deviceId.replace(/_/g, ' ')}`;
 
-        let historyLogHtml = deviceHistory[deviceId].map(score => {
+        let historyLogHtml = deviceHistory[deviceId].slice().reverse().map(score => {
             const itemRisk = getRiskInfo(score);
-            return `<li class="flex justify-between items-center text-sm"><span class="${itemRisk.textClass}">${itemRisk.tag}</span><span class="font-semibold">${score}</span></li>`
+            return `<li class="flex justify-between items-center text-sm text-slate-400"><span class="${itemRisk.textClass}">${itemRisk.tag}</span><span class="font-semibold text-slate-200">${score}</span></li>`
         }).join('');
 
         dom.modalContent.innerHTML = `
@@ -294,7 +314,7 @@
                          ${createSparkline(deviceHistory[deviceId], risk.color, 280, 80)}
                     </div>
                     <h4 class="font-bold text-slate-300 mt-4 mb-2">Recent Activity Log</h4>
-                    <ul id="modal-history-log" class="text-slate-400 bg-slate-800/50 rounded-lg p-2 h-24 overflow-y-auto">
+                    <ul id="modal-history-log" class="bg-slate-800/50 rounded-lg p-2 h-24 overflow-y-auto">
                         ${historyLogHtml}
                     </ul>
                 </div>
@@ -314,7 +334,10 @@
 
     function renderAlertFeed() {
         if (liveAlerts.length === 0) {
-            dom.alertFeed.innerHTML = '<p class="text-slate-500">No critical alerts.</p>';
+            dom.alertFeed.innerHTML = `<div class="flex items-center text-slate-500 h-full justify-center">
+                <svg class="w-6 h-6 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>All Clear</span>
+            </div>`;
             return;
         }
         dom.alertFeed.innerHTML = liveAlerts.map(alert => 
@@ -341,16 +364,20 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 
-                const oldRisk = getRiskInfo(deviceScores[deviceId]?.risk_score || 0).color;
-                const newRisk = getRiskInfo(data.risk_score).color;
+                const oldRiskColor = getRiskInfo(deviceScores[deviceId]?.risk_score || 0).color;
+                const newRiskColor = getRiskInfo(data.risk_score).color;
                 
                 deviceScores[deviceId] = { ...data, patch_status: payload.patch_status, maintenance_days: payload.maintenance_days };
                 
+                if (oldRiskColor !== newRiskColor) {
+                    deviceScores[deviceId].lastStatusChange = new Date();
+                }
+
                 if (!deviceHistory[deviceId]) deviceHistory[deviceId] = [];
                 deviceHistory[deviceId].push(data.risk_score);
                 if (deviceHistory[deviceId].length > 15) deviceHistory[deviceId].shift();
 
-                if (newRisk === 'red' && oldRisk !== 'red') {
+                if (newRiskColor === 'red' && oldRiskColor !== 'red') {
                     liveAlerts.unshift({ deviceId, time: new Date() });
                     if (liveAlerts.length > 10) liveAlerts.pop();
                 }
@@ -375,7 +402,7 @@
     // --- Event Listeners ---
     dom.logoutBtn.addEventListener('click', () => {
         sessionStorage.removeItem('isLoggedIn');
-        window.location.href = 'login.html'; // Use relative path
+        window.location.href = 'login.html';
     });
 
     dom.deviceList.addEventListener('click', (e) => {
