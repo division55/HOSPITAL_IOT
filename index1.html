@@ -55,6 +55,20 @@
         z-index: 10;
         white-space: nowrap;
     }
+    /* Custom scrollbar for alert feed */
+    #alert-feed::-webkit-scrollbar {
+        width: 6px;
+    }
+    #alert-feed::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #alert-feed::-webkit-scrollbar-thumb {
+        background: #475569; /* slate-600 */
+        border-radius: 3px;
+    }
+    #alert-feed::-webkit-scrollbar-thumb:hover {
+        background: #64748b; /* slate-500 */
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -71,15 +85,16 @@
             </div>
         </div>
         <div class="flex items-center space-x-4">
-             <div class="stat-card p-3 rounded-lg text-center w-48">
+             <!-- UPDATED: Consistent rounded-xl, shadow-lg, and padding -->
+             <div class="stat-card p-4 rounded-xl shadow-lg text-center w-48">
                 <p id="live-clock" class="text-2xl font-bold text-slate-100">00:00:00</p>
                 <p class="text-xs font-semibold text-slate-400">System Time</p>
             </div>
-            <div class="stat-card p-3 rounded-lg text-center w-36">
+            <div class="stat-card p-4 rounded-xl shadow-lg text-center w-36">
                 <p class="text-sm font-semibold text-slate-400">High-Risk Rooms</p>
                 <p id="high-risk-rooms-count" class="text-2xl font-bold text-rose-500">0</p>
             </div>
-            <div class="stat-card p-3 rounded-lg text-center w-36">
+            <div class="stat-card p-4 rounded-xl shadow-lg text-center w-36">
                 <p class="text-sm font-semibold text-slate-400">Med-Risk Rooms</p>
                 <p id="medium-risk-rooms-count" class="text-2xl font-bold text-amber-500">0</p>
             </div>
@@ -88,7 +103,8 @@
   </header>
 
   <!-- Main Content Area -->
-  <main class="w-full flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+  <!-- UPDATED: Increased gap from gap-6 to gap-8 -->
+  <main class="w-full flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
     <!-- Map Section -->
     <section class="lg:col-span-2 bg-[#0f172a]/70 backdrop-blur-sm p-4 rounded-xl shadow-lg flex items-center justify-center border border-slate-700 relative">
         <svg id="hospital-map" viewBox="0 0 800 600" class="w-full h-full">
@@ -118,7 +134,7 @@
       </div>
        <div class="flex-none mt-4 pt-4 border-t border-slate-700">
         <h3 class="text-lg font-bold text-slate-200 mb-2">Live Alert Feed</h3>
-        <div id="alert-feed" class="text-xs space-y-2">
+        <div id="alert-feed" class="text-xs space-y-2 h-24 overflow-y-auto pr-1">
             <p class="text-slate-500">No critical alerts.</p>
         </div>
       </div>
@@ -171,11 +187,11 @@
         const now = new Date();
         const seconds = Math.floor((now - timestamp) / 1000);
         if (seconds < 10) return "just now";
-        if (seconds < 60) return `${seconds} seconds ago`;
+        if (seconds < 60) return `${seconds}s ago`;
         const minutes = Math.floor(seconds / 60);
-        if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+        if (minutes < 60) return `${minutes}m ago`;
         const hours = Math.floor(minutes / 60);
-        return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        return `${hours}h ago`;
     }
 
     function createSparkline(history, color) {
@@ -230,7 +246,8 @@
             if (!data) return;
             const risk = getRiskInfo(data.risk_score);
             const card = document.createElement('div');
-            card.className = `p-3 rounded-lg ${risk.borderClass} bg-slate-800/50`;
+            // UPDATED: Added shadow-md to device cards
+            card.className = `p-3 rounded-lg shadow-md ${risk.borderClass} bg-slate-800/50`;
             card.innerHTML = `
                 <div class="flex justify-between items-start">
                     <div>
@@ -278,8 +295,9 @@
                 });
                 if (!res.ok) return;
                 const data = await res.json();
-                const oldRisk = getRiskInfo(deviceScores[deviceId]?.risk_score || 0).color;
-                const newRisk = getRiskInfo(data.risk_score).color;
+                
+                const oldScoreData = deviceScores[deviceId];
+                const newScore = data.risk_score;
                 
                 deviceScores[deviceId] = { ...data, patch_status: payload.patch_status, maintenance_days: payload.maintenance_days };
                 
@@ -287,9 +305,9 @@
                 deviceHistory[deviceId].push(data.risk_score);
                 if (deviceHistory[deviceId].length > 15) deviceHistory[deviceId].shift();
 
-                if (newRisk === 'red' && oldRisk !== 'red') {
+                if (getRiskInfo(newScore).color === 'red' && getRiskInfo(oldScoreData?.risk_score || 0).color !== 'red') {
                     liveAlerts.unshift({ deviceId, time: new Date() });
-                    if (liveAlerts.length > 4) liveAlerts.pop();
+                    if (liveAlerts.length > 10) liveAlerts.pop();
                 }
             } catch (error) { console.error(`API Error for ${deviceId}:`, error); }
         });
@@ -334,7 +352,7 @@
         setInterval(fetchAllDeviceScores, 2500);
         updateClock();
         setInterval(updateClock, 1000);
-        setInterval(renderAlertFeed, 5000); // Refresh "time ago" text
+        setInterval(renderAlertFeed, 5000); 
     });
 </script>
 </body>
